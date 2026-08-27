@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ferro"
+version = "0.1.0"
+description = "Perfilador de rendimiento algorítmico y hardware counters en C"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+ferro = "ferro.cli:app"
+
+[project.entry-points."ripley.plugins"]
+hardware_profiler = "ferro.plugins.ripley_plugin:FerroPlugin"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+pythonpath = ["src"]
