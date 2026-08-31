@@ -18,15 +18,39 @@ app = typer.Typer(
 console = Console()
 
 
-@app.command()
+def generar_seccion_markdown(profile_data: PerformanceProfile) -> str:
+    """Genera sección de auditoría de rendimiento y complejidad para Dredd."""
+    lines = ["## Perfilado de Rendimiento y Complejidad (Ferro)\n"]
+    lines.append(f"- **Archivo analizado:** `{Path(profile_data.target_file).name}`")
+    lines.append(f"- **Complejidad empírica estimada:** `{profile_data.theoretical_complexity_guess}`")
+    lines.append(f"- **Evaluación de caché/localidad:** {profile_data.cache_locality_assessment}\n")
+    if profile_data.points:
+        lines.append("| Input N | Tiempo (ms) | Ciclos CPU Est. | Ciclos / Elemento |")
+        lines.append("| :---: | :---: | :---: | :---: |")
+        for pt in profile_data.points:
+            lines.append(f"| {pt.input_size_n:,} | {pt.elapsed_time_ms:.3f} ms | {pt.cpu_cycles_est:,} | {pt.cycles_per_element:.2f} |")
+        lines.append("")
+    return "\n".join(lines)
+
+
+@app.command("profile")
+@app.command("check")
 def profile(
     target: Path = typer.Argument(..., help="Archivo .c o binario a perfilar", exists=True),
     inputs_str: str = typer.Option("1000,10000,50000", "--inputs", "-i", help="Lista de tamaños de entrada N separados por coma"),
-    json_output: bool = typer.Option(False, "--json", help="Emitir salida en formato JSON estructurado")
+    json_output: bool = typer.Option(False, "--json", help="Emitir salida en formato JSON estructurado"),
+    output_md: Optional[Path] = typer.Option(None, "--md", "--output-md", help="Generar sección de reporte en formato Markdown para fusión en Dredd."),
 ):
     """Mide tiempo de ejecución, ciclos estimados y evalúa complejidad empírica vs teórica."""
     sizes = [int(s.strip()) for s in inputs_str.split(",") if s.strip()]
     profile_data = profile_algorithm(target, sizes)
+
+    if output_md:
+        md_text = generar_seccion_markdown(profile_data)
+        output_md.parent.mkdir(parents=True, exist_ok=True)
+        output_md.write_text(md_text, encoding="utf-8")
+        console.print(f"[bold green]✓ Sección Markdown generada en:[/bold green] {output_md}")
+        raise typer.Exit(code=0)
 
     if json_output:
         print(json.dumps(profile_data.model_dump(), indent=2, ensure_ascii=False))
@@ -54,6 +78,24 @@ def profile(
         f"[bold]Localidad de Memoria y Caché:[/bold] {profile_data.cache_locality_assessment}",
         title="[bold cyan]FERRO Performance Assessment[/bold cyan]"
     ))
+
+
+@app.command("report")
+def report_cmd(
+    target: Path = typer.Argument(..., help="Archivo .c o binario a perfilar", exists=True),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Ruta de destino del archivo Markdown."),
+    inputs_str: str = typer.Option("1000,10000,50000", "--inputs", "-i", help="Lista de tamaños de entrada N"),
+):
+    """Genera directamente la sección de reporte Markdown de FERRO para Dredd."""
+    sizes = [int(s.strip()) for s in inputs_str.split(",") if s.strip()]
+    profile_data = profile_algorithm(target, sizes)
+    md_content = generar_seccion_markdown(profile_data)
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(md_content, encoding="utf-8")
+        console.print(f"[bold green]✓ Reporte Markdown generado en:[/bold green] {output}")
+    else:
+        print(md_content)
 
 
 @app.command()
