@@ -355,3 +355,12 @@ Podés encadenar `ferro` con otras herramientas del ecosistema en una única lí
 ferro profile -- ./bin/algoritmo_opt
 ````
 
+---
+
+(manual-ferro-seccion-plugins)=
+## 9. Extensión, Desarrollo de Plugins y API Python
+
+Para crear tus propias reglas, conectores de evaluación o integrar `ferro` programáticamente en pipelines de CI/CD:
+
+- 👉 **Consultá la guía completa:** [Guía de Extensión y Creación de Plugins](plugins.md)
+
