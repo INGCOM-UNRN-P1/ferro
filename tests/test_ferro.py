@@ -50,3 +50,49 @@ def test_ripley_plugin(tmp_path):
     res = plugin.run({"source_dir": str(tmp_path)})
     assert res["passed"] is True
     assert "points" in res
+
+
+def test_cli_profile_md(tmp_path):
+    src = tmp_path / "app.c"
+    src.write_text("int main(void) { return 0; }")
+    out_md = tmp_path / "report.md"
+    res = runner.invoke(app, ["profile", str(src), "-i", "10,20", "--md", str(out_md)])
+    assert res.exit_code == 0
+    assert out_md.is_file()
+    content = out_md.read_text(encoding="utf-8")
+    assert "Perfilado de Rendimiento y Complejidad" in content
+    assert "app.c" in content
+
+
+def test_cli_report(tmp_path):
+    src = tmp_path / "app.c"
+    src.write_text("int main(void) { return 0; }")
+    res = runner.invoke(app, ["report", str(src), "-i", "10"])
+    assert res.exit_code == 0
+    assert "Perfilado de Rendimiento y Complejidad" in res.output
+
+
+def test_timeout_handling(tmp_path, monkeypatch):
+    import subprocess
+    src = tmp_path / "slow.c"
+    src.write_text("int main(void) { return 0; }")
+
+    def mock_run(cmd, *args, **kwargs):
+        if cmd[0] == "gcc":
+            Path(cmd[cmd.index("-o") + 1]).touch()
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        raise subprocess.TimeoutExpired(cmd, 5)
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    profile = profile_algorithm(src, [100])
+    assert profile.passed is False
+    assert "Timeout" in profile.theoretical_complexity_guess
+
+
+def test_compilation_failure(tmp_path):
+    src = tmp_path / "bad.c"
+    src.write_text("invalid c syntax ;;; {{{")
+    profile = profile_algorithm(src, [10])
+    assert profile.passed is False
+    assert "Error de compilación" in profile.theoretical_complexity_guess
+

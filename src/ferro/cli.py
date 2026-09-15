@@ -20,10 +20,13 @@ console = Console()
 
 def generar_seccion_markdown(profile_data: PerformanceProfile) -> str:
     """Genera sección de auditoría de rendimiento y complejidad para Dredd."""
+    target_name = Path(profile_data.target_file or profile_data.target_name).name
     lines = ["## Perfilado de Rendimiento y Complejidad (Ferro)\n"]
-    lines.append(f"- **Archivo analizado:** `{Path(profile_data.target_file).name}`")
+    lines.append(f"- **Archivo analizado:** `{target_name}`")
     lines.append(f"- **Complejidad empírica estimada:** `{profile_data.theoretical_complexity_guess}`")
     lines.append(f"- **Evaluación de caché/localidad:** {profile_data.cache_locality_assessment}\n")
+    if not profile_data.passed:
+        lines.append(f"> [!CAUTION]\n> **Fallo en Perfilado:** {profile_data.error_message or 'Error en ejecución'}\n")
     if profile_data.points:
         lines.append("| Input N | Tiempo (ms) | Ciclos CPU Est. | Ciclos / Elemento |")
         lines.append("| :---: | :---: | :---: | :---: |")
@@ -50,11 +53,20 @@ def profile(
         output_md.parent.mkdir(parents=True, exist_ok=True)
         output_md.write_text(md_text, encoding="utf-8")
         console.print(f"[bold green]✓ Sección Markdown generada en:[/bold green] {output_md}")
-        raise typer.Exit(code=0)
+        raise typer.Exit(code=0 if profile_data.passed else 1)
 
     if json_output:
         print(json.dumps(profile_data.model_dump(), indent=2, ensure_ascii=False))
+        if not profile_data.passed:
+            raise typer.Exit(code=1)
         return
+
+    if not profile_data.passed:
+        console.print(Panel(
+            f"[bold red]❌ Error de Rendimiento o Ejecución:[/bold red]\n{profile_data.error_message or profile_data.theoretical_complexity_guess}",
+            title="[bold red]FERRO Error[/bold red]"
+        ))
+        raise typer.Exit(code=1)
 
     table = Table(title=f"Perfil de Rendimiento Algorítmico ({target.name})", show_header=True, header_style="bold magenta")
     table.add_column("Input N", style="cyan", justify="right")
@@ -96,6 +108,7 @@ def report_cmd(
         console.print(f"[bold green]✓ Reporte Markdown generado en:[/bold green] {output}")
     else:
         print(md_content)
+    raise typer.Exit(code=0 if profile_data.passed else 1)
 
 
 @app.command()

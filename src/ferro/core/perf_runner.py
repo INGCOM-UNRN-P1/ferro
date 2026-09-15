@@ -11,8 +11,8 @@ from ferro.core.models import BenchmarkPoint, PerformanceProfile
 
 def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
     """Ejecuta el binario pasando 'n' y mide tiempo de ejecución de alta resolución."""
-    has_perf = shutil.which("perf") is not None
     input_str = f"{n}\n"
+    timed_out = False
 
     t0 = time.perf_counter()
     try:
@@ -26,6 +26,10 @@ def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
         )
         t1 = time.perf_counter()
         elapsed_ms = (t1 - t0) * 1000.0
+    except subprocess.TimeoutExpired:
+        t1 = time.perf_counter()
+        elapsed_ms = max(5000.0, (t1 - t0) * 1000.0)
+        timed_out = True
     except Exception:
         elapsed_ms = 0.0
 
@@ -40,7 +44,8 @@ def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
         cpu_cycles_est=cycles_est,
         instructions_est=instructions_est,
         cycles_per_element=round(cycles_per_elem, 2),
-        ipc=1.5
+        ipc=1.5,
+        timed_out=timed_out
     )
 
 
@@ -53,7 +58,21 @@ def profile_algorithm(
         tmp_path = Path(tmp_dir)
         if source_or_binary.suffix == ".c":
             bin_path = tmp_path / "bench_app"
-            subprocess.run(["gcc", "-O2", str(source_or_binary), "-o", str(bin_path)], check=True)
+            comp = subprocess.run(
+                ["gcc", "-O2", str(source_or_binary), "-o", str(bin_path)],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if comp.returncode != 0:
+                return PerformanceProfile(
+                    target_name=source_or_binary.name,
+                    target_file=str(source_or_binary),
+                    passed=False,
+                    theoretical_complexity_guess="Error de compilación",
+                    cache_locality_assessment="N/A",
+                    error_message=f"Fallo al compilar con gcc -O2:\n{comp.stderr}"
+                )
             target_bin = bin_path
         else:
             target_bin = source_or_binary
@@ -62,6 +81,18 @@ def profile_algorithm(
         for n in input_sizes:
             pt = run_benchmark_for_size(target_bin, n)
             points.append(pt)
+
+        any_timeout = any(pt.timed_out for pt in points)
+        if any_timeout:
+            return PerformanceProfile(
+                target_name=source_or_binary.name,
+                target_file=str(source_or_binary),
+                points=points,
+                theoretical_complexity_guess="Timeout excedido (> 5.0s)",
+                cache_locality_assessment="Ejecución interrumpida por timeout de seguridad.",
+                passed=False,
+                error_message="Se excedió el tiempo límite de ejecución (5 segundos)."
+            )
 
         # Estimación de complejidad
         if len(points) >= 2 and points[0].elapsed_time_ms > 0 and points[-1].elapsed_time_ms > 0:
@@ -78,6 +109,7 @@ def profile_algorithm(
 
         return PerformanceProfile(
             target_name=source_or_binary.name,
+            target_file=str(source_or_binary),
             points=points,
             theoretical_complexity_guess=complexity,
             cache_locality_assessment="Patrón de acceso lineal continuo con baja tasa de cache misses.",
