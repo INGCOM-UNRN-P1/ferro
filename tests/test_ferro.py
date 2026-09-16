@@ -96,3 +96,16 @@ def test_compilation_failure(tmp_path):
     assert profile.passed is False
     assert "Error de compilación" in profile.theoretical_complexity_guess
 
+
+def test_cli_doctor():
+    res = runner.invoke(app, ["doctor"])
+    assert res.exit_code == 0
+    assert "Diagnóstico del Entorno FERRO" in res.output
+
+    res_json = runner.invoke(app, ["doctor", "--json"])
+    assert res_json.exit_code == 0
+    assert '"schema_version": "1.0.0"' in res_json.output
+    assert '"herramienta": "ferro"' in res_json.output
+    assert '"ok": true' in res_json.output
+
+
