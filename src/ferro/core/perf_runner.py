@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
 from ferro.core.models import BenchmarkPoint, PerformanceProfile
 
 
@@ -49,6 +49,25 @@ def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
     )
 
 
+def _compilar_con_daedalus(src_file: Path, bin_file: Path, extra_flags: List[str]) -> Optional[Tuple[bool, str]]:
+    try:
+        from daedalus.core.compiler import compilar_archivos
+        res = compilar_archivos([src_file], binario_salida=bin_file, flags_adicionales=extra_flags)
+        return res.exito, res.stderr_crudo
+    except ImportError:
+        import sys
+        sibling = Path(__file__).resolve().parents[4] / "daedalus" / "src"
+        if sibling.is_dir() and str(sibling) not in sys.path:
+            sys.path.insert(0, str(sibling))
+            try:
+                from daedalus.core.compiler import compilar_archivos
+                res = compilar_archivos([src_file], binario_salida=bin_file, flags_adicionales=extra_flags)
+                return res.exito, res.stderr_crudo
+            except ImportError:
+                return None
+        return None
+
+
 def profile_algorithm(
     source_or_binary: Path,
     input_sizes: List[int]
@@ -58,21 +77,34 @@ def profile_algorithm(
         tmp_path = Path(tmp_dir)
         if source_or_binary.suffix == ".c":
             bin_path = tmp_path / "bench_app"
-            comp = subprocess.run(
-                ["gcc", "-O2", str(source_or_binary), "-o", str(bin_path)],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            if comp.returncode != 0:
-                return PerformanceProfile(
-                    target_name=source_or_binary.name,
-                    target_file=str(source_or_binary),
-                    passed=False,
-                    theoretical_complexity_guess="Error de compilación",
-                    cache_locality_assessment="N/A",
-                    error_message=f"Fallo al compilar con gcc -O2:\n{comp.stderr}"
+            daed_res = _compilar_con_daedalus(source_or_binary, bin_path, ["-O2"])
+            if daed_res is not None:
+                ok, stderr = daed_res
+                if not ok:
+                    return PerformanceProfile(
+                        target_name=source_or_binary.name,
+                        target_file=str(source_or_binary),
+                        passed=False,
+                        theoretical_complexity_guess="Error de compilación",
+                        cache_locality_assessment="N/A",
+                        error_message=f"Fallo al compilar con daedalus (-O2):\n{stderr}"
+                    )
+            else:
+                comp = subprocess.run(
+                    ["gcc", "-O2", str(source_or_binary), "-o", str(bin_path)],
+                    capture_output=True,
+                    text=True,
+                    check=False
                 )
+                if comp.returncode != 0:
+                    return PerformanceProfile(
+                        target_name=source_or_binary.name,
+                        target_file=str(source_or_binary),
+                        passed=False,
+                        theoretical_complexity_guess="Error de compilación",
+                        cache_locality_assessment="N/A",
+                        error_message=f"Fallo al compilar con gcc -O2:\n{comp.stderr}"
+                    )
             target_bin = bin_path
         else:
             target_bin = source_or_binary
