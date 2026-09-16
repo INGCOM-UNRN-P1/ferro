@@ -9,29 +9,55 @@ from typing import List, Optional, Tuple
 from ferro.core.models import BenchmarkPoint, PerformanceProfile
 
 
+def _try_import_nostromo():
+    try:
+        from nostromo.core.sandbox import ejecutar_aislado
+        return ejecutar_aislado
+    except ImportError:
+        import sys
+        sibling = Path(__file__).resolve().parents[4] / "nostromo" / "src"
+        if sibling.is_dir() and str(sibling) not in sys.path:
+            sys.path.insert(0, str(sibling))
+            try:
+                from nostromo.core.sandbox import ejecutar_aislado
+                return ejecutar_aislado
+            except ImportError:
+                return None
+        return None
+
+
 def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
-    """Ejecuta el binario pasando 'n' y mide tiempo de ejecución de alta resolución."""
+    """Ejecuta el binario pasando 'n' y mide tiempo de ejecución de alta resolución delegando en nostromo."""
     input_str = f"{n}\n"
     timed_out = False
 
+    ejecutar_fn = _try_import_nostromo()
     t0 = time.perf_counter()
-    try:
-        res = subprocess.run(
-            [str(binary_path)],
-            input=input_str,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False
-        )
+    if ejecutar_fn:
+        res = ejecutar_fn(binary_path, stdin_texto=input_str, timeout_segundos=5.0, memoria_mb=128)
         t1 = time.perf_counter()
         elapsed_ms = (t1 - t0) * 1000.0
-    except subprocess.TimeoutExpired:
-        t1 = time.perf_counter()
-        elapsed_ms = max(5000.0, (t1 - t0) * 1000.0)
-        timed_out = True
-    except Exception:
-        elapsed_ms = 0.0
+        if res.error_tipo == "TIMEOUT":
+            timed_out = True
+            elapsed_ms = max(5000.0, elapsed_ms)
+    else:
+        try:
+            res = subprocess.run(
+                [str(binary_path)],
+                input=input_str,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False
+            )
+            t1 = time.perf_counter()
+            elapsed_ms = (t1 - t0) * 1000.0
+        except subprocess.TimeoutExpired:
+            t1 = time.perf_counter()
+            elapsed_ms = max(5000.0, (t1 - t0) * 1000.0)
+            timed_out = True
+        except Exception:
+            elapsed_ms = 0.0
 
     # Estimación de ciclos (a ~3 GHz)
     cycles_est = int(elapsed_ms * 3_000_000)
