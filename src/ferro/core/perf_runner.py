@@ -6,6 +6,7 @@ import tempfile
 import subprocess
 from pathlib import Path
 from typing import List, Optional, Tuple
+from ferro.core.cache_locality import medir_localidad_cache
 from ferro.core.models import BenchmarkPoint, PerformanceProfile
 
 
@@ -170,6 +171,8 @@ def profile_algorithm(
             target_file=str(source_or_binary),
             points=points,
             theoretical_complexity_guess=complexity,
-            cache_locality_assessment="Patrón de acceso lineal continuo con baja tasa de cache misses.",
+            cache_locality_assessment=medir_localidad_cache(
+                target_bin, args=[str(input_sizes[-1])] if input_sizes else None
+            ).evaluacion,
             passed=True
         )
