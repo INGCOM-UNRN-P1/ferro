@@ -19,6 +19,25 @@ console = Console()
 err_console = Console(stderr=True)
 
 
+def _parsear_tamanios(texto: str) -> List[int]:
+    """`--inputs "100,1000"` -> [100, 1000]; un valor no numérico es un error de uso, no un ValueError crudo."""
+    try:
+        tamanios = [int(t.strip()) for t in texto.split(",") if t.strip()]
+    except ValueError:
+        err_console.print(f"[red]--inputs inválido:[/red] '{texto}'. Se esperan enteros separados por coma, p. ej. 1000,10000.")
+        raise typer.Exit(code=2)
+    if not tamanios or any(t <= 0 for t in tamanios):
+        err_console.print("[red]--inputs inválido:[/red] indicá al menos un tamaño N y todos deben ser mayores que cero.")
+        raise typer.Exit(code=2)
+    return tamanios
+
+
+def _validar_opt(opt: str) -> None:
+    if opt not in OPT_LEVELS_VALIDOS:
+        err_console.print(f"[red]--opt inválido:[/red] {opt}. Valores admitidos: {', '.join(OPT_LEVELS_VALIDOS)}.")
+        raise typer.Exit(code=2)
+
+
 def _fmt_entero(valor) -> str:
     """Un contador no medido se muestra como N/D, nunca como una cifra."""
     return f"{valor:,}" if valor is not None else "N/D"
@@ -61,10 +80,8 @@ def profile(
     opt: str = typer.Option("-O0", "--opt", help="Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3, -Os). Con -O2 un bucle sin efectos observables se elimina y no se mide."),
 ):
     """Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica."""
-    if opt not in OPT_LEVELS_VALIDOS:
-        err_console.print(f"[red]--opt inválido:[/red] {opt}. Valores admitidos: {', '.join(OPT_LEVELS_VALIDOS)}.")
-        raise typer.Exit(code=2)
-    sizes = [int(s.strip()) for s in inputs_str.split(",") if s.strip()]
+    _validar_opt(opt)
+    sizes = _parsear_tamanios(inputs_str)
     profile_data = profile_algorithm(target, sizes, opt_level=opt)
 
     if output_md:
@@ -116,10 +133,12 @@ def report_cmd(
     target: Path = typer.Argument(..., help="Archivo .c o binario a perfilar", exists=True),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Ruta de destino del archivo Markdown."),
     inputs_str: str = typer.Option("1000,10000,50000", "--inputs", "-i", help="Lista de tamaños de entrada N"),
+    opt: str = typer.Option("-O0", "--opt", help="Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3, -Os)."),
 ):
     """Genera directamente la sección de reporte Markdown de FERRO para Dredd."""
-    sizes = [int(s.strip()) for s in inputs_str.split(",") if s.strip()]
-    profile_data = profile_algorithm(target, sizes)
+    _validar_opt(opt)
+    sizes = _parsear_tamanios(inputs_str)
+    profile_data = profile_algorithm(target, sizes, opt_level=opt)
     md_content = generar_seccion_markdown(profile_data)
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
