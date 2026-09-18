@@ -84,6 +84,7 @@ def test_timeout_handling(tmp_path, monkeypatch):
         raise subprocess.TimeoutExpired(cmd, 5)
 
     monkeypatch.setattr(subprocess, "run", mock_run)
+    monkeypatch.setattr("ferro.core.perf_runner._try_import_nostromo", lambda: None)
     profile = profile_algorithm(src, [100])
     assert profile.passed is False
     assert "Timeout" in profile.theoretical_complexity_guess

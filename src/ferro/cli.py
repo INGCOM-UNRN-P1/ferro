@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from ferro.core.models import PerformanceProfile
-from ferro.core.perf_runner import profile_algorithm
+from ferro.core.perf_runner import OPT_LEVELS_VALIDOS, profile_algorithm
 
 app = typer.Typer(
     name="ferro",
@@ -16,6 +16,16 @@ app = typer.Typer(
     add_completion=True
 )
 console = Console()
+err_console = Console(stderr=True)
+
+
+def _fmt_entero(valor) -> str:
+    """Un contador no medido se muestra como N/D, nunca como una cifra."""
+    return f"{valor:,}" if valor is not None else "N/D"
+
+
+def _fmt_decimal(valor) -> str:
+    return f"{valor:.2f}" if valor is not None else "N/D"
 
 
 def generar_seccion_markdown(profile_data: PerformanceProfile) -> str:
@@ -25,13 +35,18 @@ def generar_seccion_markdown(profile_data: PerformanceProfile) -> str:
     lines.append(f"- **Archivo analizado:** `{target_name}`")
     lines.append(f"- **Complejidad empírica estimada:** `{profile_data.theoretical_complexity_guess}`")
     lines.append(f"- **Evaluación de caché/localidad:** {profile_data.cache_locality_assessment}\n")
+    for aviso in profile_data.advertencias:
+        lines.append(f"> [!WARNING]\n> {aviso}\n")
     if not profile_data.passed:
         lines.append(f"> [!CAUTION]\n> **Fallo en Perfilado:** {profile_data.error_message or 'Error en ejecución'}\n")
     if profile_data.points:
-        lines.append("| Input N | Tiempo (ms) | Ciclos CPU Est. | Ciclos / Elemento |")
+        lines.append("| Input N | Tiempo (ms) | Instrucciones (Cachegrind) | Instrucciones / Elemento |")
         lines.append("| :---: | :---: | :---: | :---: |")
         for pt in profile_data.points:
-            lines.append(f"| {pt.input_size_n:,} | {pt.elapsed_time_ms:.3f} ms | {pt.cpu_cycles_est:,} | {pt.cycles_per_element:.2f} |")
+            lines.append(
+                f"| {pt.input_size_n:,} | {pt.elapsed_time_ms:.3f} ms | {_fmt_entero(pt.instructions_est)} "
+                f"| {_fmt_decimal(pt.instrucciones_por_elemento)} |"
+            )
         lines.append("")
     return "\n".join(lines)
 
@@ -43,10 +58,14 @@ def profile(
     inputs_str: str = typer.Option("1000,10000,50000", "--inputs", "-i", help="Lista de tamaños de entrada N separados por coma"),
     json_output: bool = typer.Option(False, "--json", help="Emitir salida en formato JSON estructurado"),
     output_md: Optional[Path] = typer.Option(None, "--md", "--output-md", help="Generar sección de reporte en formato Markdown para fusión en Dredd."),
+    opt: str = typer.Option("-O0", "--opt", help="Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3, -Os). Con -O2 un bucle sin efectos observables se elimina y no se mide."),
 ):
-    """Mide tiempo de ejecución, ciclos estimados y evalúa complejidad empírica vs teórica."""
+    """Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica."""
+    if opt not in OPT_LEVELS_VALIDOS:
+        err_console.print(f"[red]--opt inválido:[/red] {opt}. Valores admitidos: {', '.join(OPT_LEVELS_VALIDOS)}.")
+        raise typer.Exit(code=2)
     sizes = [int(s.strip()) for s in inputs_str.split(",") if s.strip()]
-    profile_data = profile_algorithm(target, sizes)
+    profile_data = profile_algorithm(target, sizes, opt_level=opt)
 
     if output_md:
         md_text = generar_seccion_markdown(profile_data)
@@ -71,23 +90,23 @@ def profile(
     table = Table(title=f"Perfil de Rendimiento Algorítmico ({target.name})", show_header=True, header_style="bold magenta")
     table.add_column("Input N", style="cyan", justify="right")
     table.add_column("Tiempo (ms)", style="yellow", justify="right")
-    table.add_column("Ciclos CPU Est.", style="white", justify="right")
-    table.add_column("Instrucciones Est.", style="dim", justify="right")
-    table.add_column("Ciclos / Elemento", style="bold green", justify="right")
+    table.add_column("Instrucciones (Cachegrind)", style="white", justify="right")
+    table.add_column("Instrucciones / Elemento", style="bold green", justify="right")
 
     for pt in profile_data.points:
         table.add_row(
             f"{pt.input_size_n:,}",
             f"{pt.elapsed_time_ms:.3f} ms",
-            f"{pt.cpu_cycles_est:,}",
-            f"{pt.instructions_est:,}",
-            f"{pt.cycles_per_element:.2f}"
+            _fmt_entero(pt.instructions_est),
+            _fmt_decimal(pt.instrucciones_por_elemento),
         )
 
     console.print(table)
+    avisos = "".join(f"\n[bold yellow]⚠ {a}[/bold yellow]" for a in profile_data.advertencias)
     console.print(Panel(
         f"[bold]Complejidad Empírica Estimada:[/bold] [bold green]{profile_data.theoretical_complexity_guess}[/bold green]\n"
-        f"[bold]Localidad de Memoria y Caché:[/bold] {profile_data.cache_locality_assessment}",
+        f"[bold]Localidad de Memoria y Caché:[/bold] {profile_data.cache_locality_assessment}"
+        f"{avisos}",
         title="[bold cyan]FERRO Performance Assessment[/bold cyan]"
     ))
 

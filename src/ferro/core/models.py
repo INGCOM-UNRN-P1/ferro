@@ -7,10 +7,17 @@ from pydantic import BaseModel, Field
 class BenchmarkPoint(BaseModel):
     input_size_n: int
     elapsed_time_ms: float
-    cpu_cycles_est: int = 0
-    instructions_est: int = 0
-    cycles_per_element: float = 0.0
-    ipc: float = 0.0  # Instructions Per Cycle
+    # Contadores: se informan solo si se MIDIERON. Antes los ciclos eran
+    # tiempo × 3 GHz fijos, las instrucciones ciclos × 1,5 y el IPC un 1.5
+    # constante presentado como dato: tres cifras inventadas con aspecto de
+    # medición. Sin `perf_event_open` no hay ciclos ni IPC reales, así que quedan
+    # en `None`; las instrucciones salen de Cachegrind (exactas).
+    cpu_cycles_est: Optional[int] = None
+    instructions_est: Optional[int] = None
+    instrucciones_por_elemento: Optional[float] = None
+    cycles_per_element: Optional[float] = None
+    ipc: Optional[float] = None  # Instructions Per Cycle
+    contadores: str = "no medido"
     timed_out: bool = False
 
 
@@ -22,6 +29,8 @@ class PerformanceProfile(BaseModel):
     cache_locality_assessment: str = "Buena localidad espacial detectada."
     passed: bool = True
     error_message: Optional[str] = None
+    opt_level: str = "-O0"
+    advertencias: List[str] = Field(default_factory=list)
 
     def __init__(self, **data):
         if "target_name" in data and not data.get("target_file"):

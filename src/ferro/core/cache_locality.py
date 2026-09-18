@@ -22,6 +22,8 @@ from typing import List, Optional
 # "D1  miss rate:    4.2%" / "LLd miss rate:  0.1%"
 _TASA_D1 = re.compile(r"D1\s+miss rate:\s*([\d.]+)%")
 _TASA_LLD = re.compile(r"LLd\s+miss rate:\s*([\d.]+)%")
+# "I   refs:      852,954": instrucciones realmente ejecutadas, exactas y deterministas.
+_INSTRUCCIONES = re.compile(r"\bI\s+refs:\s+([\d,]+)")
 
 # Umbrales de tasa de fallos de D1 para traducir el número a una lectura
 # pedagógica. Por encima de ~10 % el patrón de acceso domina el tiempo de
@@ -36,6 +38,7 @@ class MedicionCache:
     medido: bool
     tasa_fallos_d1: Optional[float] = None
     tasa_fallos_lld: Optional[float] = None
+    instrucciones: Optional[int] = None
     detalle: str = ""
 
     @property
@@ -62,8 +65,14 @@ def medir_localidad_cache(
     binario: Path,
     args: Optional[List[str]] = None,
     timeout_segundos: float = 60.0,
+    stdin_texto: str = "",
 ) -> MedicionCache:
-    """Ejecuta el binario bajo Cachegrind y devuelve las tasas de fallo reales."""
+    """Ejecuta el binario bajo Cachegrind y devuelve las tasas de fallo reales.
+
+    `stdin_texto` es la entrada del programa: los benchmarks de FERRO le pasan N
+    por stdin, y medir sin ella cuenta solo el arranque (140 mil instrucciones)
+    en lugar del trabajo real (853 mil para N=2000 en el programa de prueba).
+    """
     valgrind = shutil.which("valgrind")
     if not valgrind:
         return MedicionCache(medido=False, detalle="valgrind no está instalado.")
@@ -79,7 +88,7 @@ def medir_localidad_cache(
         *(args or []),
     ]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_segundos)
+        res = subprocess.run(cmd, input=stdin_texto, capture_output=True, text=True, timeout=timeout_segundos)
     except subprocess.TimeoutExpired:
         return MedicionCache(
             medido=False,
@@ -97,8 +106,10 @@ def medir_localidad_cache(
             detalle="Cachegrind no emitió estadísticas de caché para esta ejecución.",
         )
 
+    m_ir = _INSTRUCCIONES.search(salida)
     return MedicionCache(
         medido=True,
         tasa_fallos_d1=float(m_d1.group(1)),
         tasa_fallos_lld=float(m_lld.group(1)) if m_lld else None,
+        instrucciones=int(m_ir.group(1).replace(",", "")) if m_ir else None,
     )
