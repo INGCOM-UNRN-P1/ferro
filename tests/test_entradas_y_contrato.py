@@ -48,3 +48,12 @@ def test_json_versionado_y_distingue_medido_de_no_medido(tmp_path):
         assert pt["origen_instrucciones"] in ("cachegrind", "no medido")
         if pt["instructions_est"] is not None:
             assert pt["origen_instrucciones"] == "cachegrind"
+
+
+def test_version_como_opcion_global():
+    """FERRO-D0402: `--version`/`-v` como en el resto del ecosistema."""
+    from ferro import __version__
+    for flag in ("--version", "-v"):
+        res = runner.invoke(app, [flag])
+        assert res.exit_code == 0
+        assert __version__ in res.output

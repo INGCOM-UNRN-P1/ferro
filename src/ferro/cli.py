@@ -19,6 +19,23 @@ console = Console()
 err_console = Console(stderr=True)
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        from ferro import __version__
+        console.print(f"ferro {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main_callback(
+    version: Optional[bool] = typer.Option(
+        None, "--version", "-v", help="Muestra la versión de ferro y sale.",
+        callback=_version_callback, is_eager=True,
+    ),
+) -> None:
+    """Perfilador de rendimiento algorítmico y hardware counters en C."""
+
+
 def _parsear_tamanios(texto: str) -> List[int]:
     """`--inputs "100,1000"` -> [100, 1000]; un valor no numérico es un error de uso, no un ValueError crudo."""
     try:
