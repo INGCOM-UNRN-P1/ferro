@@ -57,3 +57,14 @@ def test_version_como_opcion_global():
         res = runner.invoke(app, [flag])
         assert res.exit_code == 0
         assert __version__ in res.output
+
+
+def test_error_de_compilacion_es_fallo_limpio_y_no_traceback(tmp_path):
+    """FERRO-D0403/D0305: un .c que no compila da passed=false y exit 1, sin CalledProcessError."""
+    import json
+    src = tmp_path / "mal.c"
+    src.write_text("int main(void){ return x; }", encoding="utf-8")
+    res = runner.invoke(app, ["profile", str(src), "--json"])
+    assert res.exit_code == 1
+    assert json.loads(res.output)["passed"] is False
+    assert "CalledProcessError" not in res.output
