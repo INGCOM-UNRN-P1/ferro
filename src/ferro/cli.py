@@ -22,7 +22,7 @@ err_console = Console(stderr=True)
 def _version_callback(value: bool) -> None:
     if value:
         from ferro import __version__
-        console.print(f"ferro {__version__}")
+        typer.echo(f"ferro {__version__}")
         raise typer.Exit()
 
 
