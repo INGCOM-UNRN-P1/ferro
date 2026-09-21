@@ -205,6 +205,7 @@ def profile_algorithm(
             if medicion.medido and medicion.instrucciones is not None:
                 pt.instructions_est = medicion.instrucciones
                 pt.instrucciones_por_elemento = round(medicion.instrucciones / n, 2) if n > 0 else None
+                pt.origen_instrucciones = "cachegrind"
                 pt.contadores = "instrucciones: Cachegrind (exactas); ciclos e IPC no medidos (requieren perf_event_open)"
             points.append(pt)
             mediciones.append(medicion)

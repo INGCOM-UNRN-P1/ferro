@@ -18,10 +18,14 @@ class BenchmarkPoint(BaseModel):
     cycles_per_element: Optional[float] = None
     ipc: Optional[float] = None  # Instructions Per Cycle
     contadores: str = "no medido"
+    # Distingue lo MEDIDO de lo estimado: "cachegrind" (instrucciones exactas),
+    # "tiempo-de-pared" (solo cronómetro) o "no medido".
+    origen_instrucciones: str = "no medido"
     timed_out: bool = False
 
 
 class PerformanceProfile(BaseModel):
+    schema_version: str = "1.0.0"
     target_name: str
     target_file: Optional[str] = None
     points: List[BenchmarkPoint] = Field(default_factory=list)

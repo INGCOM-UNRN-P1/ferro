@@ -34,3 +34,17 @@ def test_el_readme_no_promete_contadores_de_hardware_inexistentes():
     assert "perf_event_open" not in texto.split("Qué no cubre")[0].replace("**no se miden**", "")
     assert "N/D" in texto
     assert "stdin" in texto.lower() or "entrada estándar" in texto
+
+
+def test_json_versionado_y_distingue_medido_de_no_medido(tmp_path):
+    """FERRO-D0602: el JSON lleva schema_version y el origen de cada contador."""
+    import json
+    src = tmp_path / "a.c"
+    src.write_text("#include <stdio.h>\nint main(void){int n;scanf(\"%d\",&n);return 0;}", encoding="utf-8")
+    res = runner.invoke(app, ["profile", str(src), "-i", "10,20", "--json"])
+    data = json.loads(res.output)
+    assert data["schema_version"] == "1.0.0"
+    for pt in data["points"]:
+        assert pt["origen_instrucciones"] in ("cachegrind", "no medido")
+        if pt["instructions_est"] is not None:
+            assert pt["origen_instrucciones"] == "cachegrind"

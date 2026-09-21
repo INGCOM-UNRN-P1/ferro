@@ -20,6 +20,7 @@ class FerroPlugin:
         profile = profile_algorithm(main_c, [1000, 10000])
 
         return {
+            "schema_version": profile.schema_version,
             "passed": profile.passed,
             "complexity": profile.theoretical_complexity_guess,
             "points": [p.model_dump() for p in profile.points]
