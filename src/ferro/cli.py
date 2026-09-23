@@ -66,8 +66,12 @@ def _fmt_decimal(valor) -> str:
 
 def generar_seccion_markdown(profile_data: PerformanceProfile) -> str:
     """Genera sección de auditoría de rendimiento y complejidad para Dredd."""
+    status = "ok" if profile_data.passed else "fail"
     target_name = Path(profile_data.target_file or profile_data.target_name).name
-    lines = ["## Perfilado de Rendimiento y Complejidad (Ferro)\n"]
+    lines = [
+        f"<!-- dredd-section: ferro, tool=ferro, version=1.0.0, status={status} -->\n",
+        "## Perfilado de Rendimiento y Complejidad (Ferro)\n",
+    ]
     lines.append(f"- **Archivo analizado:** `{target_name}`")
     lines.append(f"- **Complejidad empírica estimada:** `{profile_data.theoretical_complexity_guess}`")
     lines.append(f"- **Evaluación de caché/localidad:** {profile_data.cache_locality_assessment}\n")
