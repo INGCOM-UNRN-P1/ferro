@@ -1,5 +1,7 @@
 # FERRO — Perfilador de Rendimiento Algorítmico y Hardware Counters en C
 
+> 📖 **Manual de Usuario:** Para una guía exhaustiva de comandos, banderas, arquitectura y ejemplos, consultá el [Manual de Uso](MANUAL.md).
+
 **FERRO** ejecuta programas C a través de múltiples tamaños de entrada ($N$), midiendo el tiempo y las instrucciones ejecutadas (con Cachegrind) e infiriendo la complejidad temporal empírica ($O(N)$, $O(N \log N)$, $O(N^2)$).
 
 ---
