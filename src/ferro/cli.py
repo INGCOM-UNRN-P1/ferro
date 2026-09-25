@@ -11,6 +11,7 @@ from ferro.core.models import PerformanceProfile
 from ferro.core.perf_runner import OPT_LEVELS_VALIDOS, profile_algorithm
 
 app = typer.Typer(
+    context_settings={"help_option_names": ["-h", "--help"]},
     name="ferro",
     help="Perfilador de rendimiento algorítmico y hardware counters en C",
     add_completion=True
