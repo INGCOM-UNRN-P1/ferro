@@ -14,18 +14,9 @@ from ferro.core.models import BenchmarkPoint, PerformanceProfile
 def _try_import_nostromo():
     try:
         from nostromo.core.sandbox import ejecutar_aislado
-        return ejecutar_aislado
     except ImportError:
-        import sys
-        sibling = Path(__file__).resolve().parents[4] / "nostromo" / "src"
-        if sibling.is_dir() and str(sibling) not in sys.path:
-            sys.path.insert(0, str(sibling))
-            try:
-                from nostromo.core.sandbox import ejecutar_aislado
-                return ejecutar_aislado
-            except ImportError:
-                return None
-        return None
+        return None  # sin el extra `ecosistema` se usa el camino propio
+    return ejecutar_aislado
 
 
 def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
@@ -71,20 +62,10 @@ def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
 def _compilar_con_daedalus(src_file: Path, bin_file: Path, extra_flags: List[str]) -> Optional[Tuple[bool, str]]:
     try:
         from daedalus.core.compiler import compilar_archivos
-        res = compilar_archivos([src_file], binario_salida=bin_file, flags_adicionales=extra_flags)
-        return res.exito, res.stderr_crudo
     except ImportError:
-        import sys
-        sibling = Path(__file__).resolve().parents[4] / "daedalus" / "src"
-        if sibling.is_dir() and str(sibling) not in sys.path:
-            sys.path.insert(0, str(sibling))
-            try:
-                from daedalus.core.compiler import compilar_archivos
-                res = compilar_archivos([src_file], binario_salida=bin_file, flags_adicionales=extra_flags)
-                return res.exito, res.stderr_crudo
-            except ImportError:
-                return None
-        return None
+        return None  # sin el extra `ecosistema` se usa el camino propio
+    res = compilar_archivos([src_file], binario_salida=bin_file, flags_adicionales=extra_flags)
+    return res.exito, res.stderr_crudo
 
 
 OPT_LEVELS_VALIDOS = ("-O0", "-O1", "-O2", "-O3", "-Os")
