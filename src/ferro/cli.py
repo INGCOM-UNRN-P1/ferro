@@ -4,37 +4,25 @@ import json
 from pathlib import Path
 from typing import List, Optional
 import typer
+from yutani.cli import crear_app
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
+from ferro import __version__
 from ferro.core.models import PerformanceProfile
 from ferro.core.perf_runner import OPT_LEVELS_VALIDOS, profile_algorithm
 
-app = typer.Typer(
-    context_settings={"help_option_names": ["-h", "--help"]},
-    name="ferro",
-    help="Perfilador de rendimiento algorítmico y hardware counters en C",
-    add_completion=True
+# Contrato de línea de comandos del ecosistema (-h/--help, --version/-v, errores de datos como
+# mensajes) y textos de Typer en español, desde yutani (N-ECO-14).
+app = crear_app(
+    "ferro",
+    __version__,
+    "Perfilador de rendimiento algorítmico y hardware counters en C",
+    add_completion=True,
+    no_args_is_help=False,
 )
 console = Console()
 err_console = Console(stderr=True)
-
-
-def _version_callback(value: bool) -> None:
-    if value:
-        from ferro import __version__
-        typer.echo(f"ferro {__version__}")
-        raise typer.Exit()
-
-
-@app.callback()
-def main_callback(
-    version: Optional[bool] = typer.Option(
-        None, "--version", "-v", help="Muestra la versión de ferro y sale.",
-        callback=_version_callback, is_eager=True,
-    ),
-) -> None:
-    """Perfilador de rendimiento algorítmico y hardware counters en C."""
 
 
 def _parsear_tamanios(texto: str) -> List[int]:
