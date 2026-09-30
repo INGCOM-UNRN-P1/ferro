@@ -52,3 +52,32 @@ ferro profile ordenamiento.c --json
 El programa perfilado **debe leer $N$ por la entrada estándar** (`scanf("%d", &n)`): ferro se lo envía como `N\n`. Un programa que ignore stdin se perfila igual con $N$ irrelevante, y las instrucciones no crecerán (ferro lo advierte).
 
 Por defecto se compila con `-O0` (`--opt`): con `-O2` un bucle cuyo resultado no se usa se elimina y no se mide. Si querés medir con optimización, hacé observable el resultado (variable `volatile` o `printf`).
+
+<!-- p1:referencia:inicio — generado por p1-tools/scripts/readme_generado.py: no editar a mano -->
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- Programas del sistema: `gcc`, `valgrind`.
+
+| Sistema | `gcc` | `valgrind` |
+|:--|:--|:--|
+| Debian / Ubuntu | `sudo apt install gcc` | `sudo apt install valgrind` |
+| Fedora | `sudo dnf install gcc` | `sudo dnf install valgrind` |
+| Windows | incluido en el entorno de la cátedra (MSYS2 UCRT64) | no existe: usar WSL |
+| macOS | `xcode-select --install` (clang como `gcc`) | no existe en Apple Silicon |
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `ferro check`, `ferro profile` | Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica. |
+| `ferro report` | Genera directamente la sección de reporte Markdown de FERRO para Dredd. |
+| `ferro doctor` | Verifica el estado del entorno de perfilado de rendimiento FERRO (Python, GCC, perf/time). |
+| `ferro version` | Muestra la versión de FERRO. |
+
+Ayuda de cada comando: `ferro <comando> -h`.
+
+<!-- p1:referencia:fin -->
