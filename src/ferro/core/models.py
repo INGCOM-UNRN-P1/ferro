@@ -22,6 +22,7 @@ class BenchmarkPoint(BaseModel):
     # "tiempo-de-pared" (solo cronómetro) o "no medido".
     origen_instrucciones: str = "no medido"
     timed_out: bool = False
+    repeticiones: int = 1  # el tiempo es el mínimo de estas corridas
 
 
 class PerformanceProfile(BaseModel):
@@ -35,6 +36,13 @@ class PerformanceProfile(BaseModel):
     error_message: Optional[str] = None
     opt_level: str = "-O0"
     advertencias: List[str] = Field(default_factory=list)
+    # Ajuste log-log de todos los tamaños (valor ≈ c·Nᵏ) sobre la métrica más confiable medida.
+    exponente_empirico: Optional[float] = None
+    r2_ajuste: Optional[float] = None
+    metrica_complejidad: str = "no medido"
+    # Cómo se midió (QoL #369): ferro no usa perf, así que ciclos e IPC no se informan.
+    medicion_tiempo: str = "no medido"
+    perf: str = "no se usa: ciclos e IPC no se miden (perf casi nunca está disponible para el estudiante)"
 
     def __init__(self, **data):
         if "target_name" in data and not data.get("target_file"):

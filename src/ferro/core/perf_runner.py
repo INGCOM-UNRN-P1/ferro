@@ -19,7 +19,27 @@ def _try_import_nostromo():
     return ejecutar_aislado
 
 
-def run_benchmark_for_size(binary_path: Path, n: int) -> BenchmarkPoint:
+REPETICIONES = 3
+
+
+def fuente_del_tiempo() -> str:
+    """Con qué se mide el tiempo (QoL #369): nostromo si está instalado (sandbox con límites), si no
+    un subproceso cronometrado. ferro no usa perf: en el entorno del estudiante casi nunca está (o
+    no tiene permisos de perf_event_open), así que ciclos e IPC no se informan."""
+    return "nostromo (sandbox)" if _try_import_nostromo() else "subproceso cronometrado (sin nostromo)"
+
+
+def run_benchmark_for_size(binary_path: Path, n: int, repeticiones: int = REPETICIONES) -> BenchmarkPoint:
+    """El mejor de `repeticiones` tiempos: el mínimo es el que menos ruido del sistema tiene."""
+    puntos = [_una_corrida(binary_path, n)]
+    while len(puntos) < repeticiones and not puntos[-1].timed_out:
+        puntos.append(_una_corrida(binary_path, n))
+    mejor = min(puntos, key=lambda p: (p.timed_out, p.elapsed_time_ms))
+    mejor.repeticiones = len(puntos)
+    return mejor
+
+
+def _una_corrida(binary_path: Path, n: int) -> BenchmarkPoint:
     """Ejecuta el binario pasando 'n' y mide tiempo de ejecución de alta resolución delegando en nostromo."""
     input_str = f"{n}\n"
     timed_out = False
@@ -102,6 +122,41 @@ def _clasificar_exponente(k: float) -> str:
     if k >= 1.15:
         return "O(N log N)"
     return "O(N) o sublineal"
+
+
+def ajuste_loglog(points: List[BenchmarkPoint], campo: str) -> Optional[Tuple[float, float]]:
+    """Exponente k de `valor ≈ a + b·Nᵏ` con todos los tamaños, y su R² (QoL #375).
+
+    La constante `a` es el costo fijo (arrancar el proceso, leer la entrada): en los tamaños chicos
+    domina, y un ajuste de `b·Nᵏ` solo daba k ≈ 1,5 para un O(N²) real. Para cada k de una grilla
+    se ajustan a y b por mínimos cuadrados (a ≥ 0) y se queda el de menor error."""
+    serie = [(float(p.input_size_n), float(getattr(p, campo)))
+             for p in points if p.input_size_n > 0 and getattr(p, campo) and not p.timed_out]
+    if len(serie) < 3 or len({n for n, _ in serie}) < 3:
+        return None
+    ys = [v for _, v in serie]
+    media = sum(ys) / len(ys)
+    total = sum((v - media) ** 2 for v in ys)
+    mejor: Optional[Tuple[float, float]] = None  # (error, k)
+    for paso in range(25, 401):
+        k = paso / 100
+        xs = [n ** k for n, _ in serie]
+        mx = sum(xs) / len(xs)
+        sxx = sum((x - mx) ** 2 for x in xs)
+        if sxx == 0:
+            continue
+        b = sum((x - mx) * (v - media) for x, v in zip(xs, ys)) / sxx
+        a = media - b * mx
+        if a < 0 or b <= 0:
+            a = 0.0
+            b = sum(x * v for x, v in zip(xs, ys)) / sum(x * x for x in xs)
+        error = sum((v - (a + b * x)) ** 2 for x, v in zip(xs, ys))
+        if mejor is None or error < mejor[0]:
+            mejor = (error, k)
+    if mejor is None:
+        return None
+    error, k = mejor
+    return k, (1.0 - error / total) if total > 0 else 1.0
 
 
 def _estimar_complejidad(points: List[BenchmarkPoint]) -> str:
@@ -204,6 +259,10 @@ def profile_algorithm(
             )
 
         complexity = _estimar_complejidad(points)
+        metrica = "instrucciones (Cachegrind)" if any(p.instructions_est for p in points) else "tiempo de pared"
+        ajuste = ajuste_loglog(points, "instructions_est" if metrica.startswith("instrucciones") else "elapsed_time_ms")
+        if ajuste is not None:
+            complexity = _clasificar_exponente(ajuste[0])
 
         return PerformanceProfile(
             target_name=source_or_binary.name,
@@ -215,5 +274,9 @@ def profile_algorithm(
             ),
             opt_level=opt_level,
             advertencias=_detectar_trabajo_eliminado(points),
-            passed=True
+            passed=True,
+            exponente_empirico=round(ajuste[0], 2) if ajuste else None,
+            r2_ajuste=round(ajuste[1], 3) if ajuste else None,
+            metrica_complejidad=metrica,
+            medicion_tiempo=fuente_del_tiempo(),
         )

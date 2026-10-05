@@ -53,6 +53,18 @@ El programa perfilado **debe leer $N$ por la entrada estándar** (`scanf("%d", &
 
 Por defecto se compila con `-O0` (`--opt`): con `-O2` un bucle cuyo resultado no se usa se elimina y no se mide. Si querés medir con optimización, hacé observable el resultado (variable `volatile` o `printf`).
 
+### Cómo se mide y cómo se estima la complejidad
+
+- **Tiempo:** con nostromo (sandbox con límites) si está instalado, si no con un subproceso
+  cronometrado; de cada tamaño se toma el mejor de 3 corridas. **Instrucciones:** Cachegrind
+  (exactas). ferro **no usa perf**: en el entorno del estudiante casi nunca está o no tiene permisos,
+  así que ciclos e IPC no se informan (la salida lo dice y el JSON trae `medicion_tiempo` y `perf`).
+- **Complejidad:** se ajusta `a + b·Nᵏ` con todos los tamaños (`a` es el costo fijo de arrancar el
+  programa, que en los tamaños chicos domina) y se informa `exponente_empirico` (k) y `r2_ajuste`.
+  Hacen falta al menos 3 tamaños; con menos se compara entre los dos mayores.
+- **Gráfico:** N contra la métrica en escala log-log, en la terminal; con `--grafico curva.svg`,
+  además como SVG para el reporte.
+
 <!-- p1:referencia:inicio — generado por p1-tools/scripts/readme_generado.py: no editar a mano -->
 
 ## Referencia rápida

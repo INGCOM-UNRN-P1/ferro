@@ -88,6 +88,7 @@ def profile(
     json_output: bool = typer.Option(False, "--json", help="Emitir salida en formato JSON estructurado"),
     output_md: Optional[Path] = typer.Option(None, "--md", "--output-md", help="Generar sección de reporte en formato Markdown para fusión en Dredd."),
     opt: str = typer.Option("-O0", "--opt", help="Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3, -Os). Con -O2 un bucle sin efectos observables se elimina y no se mide."),
+    grafico: Optional[Path] = typer.Option(None, "--grafico", help="Guardar el gráfico N contra la métrica medida como SVG."),
 ):
     """Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica."""
     _validar_opt(opt)
@@ -100,6 +101,12 @@ def profile(
         output_md.write_text(md_text, encoding="utf-8")
         console.print(f"[bold green]✓ Sección Markdown generada en:[/bold green] {output_md}")
         raise typer.Exit(code=0 if profile_data.passed else 1)
+
+    if grafico is not None:
+        from ferro.core.grafico import grafico_svg
+
+        if grafico_svg(profile_data, grafico) and not json_output:
+            console.print(f"[green]✓ Gráfico guardado en {grafico}[/green]")
 
     if json_output:
         print(json.dumps(profile_data.model_dump(), indent=2, ensure_ascii=False))
@@ -129,6 +136,13 @@ def profile(
         )
 
     console.print(table)
+    from ferro.core.grafico import grafico_ascii
+
+    dibujo = grafico_ascii(profile_data)
+    if dibujo:
+        console.print(dibujo, highlight=False)
+    console.print(f"[dim]Tiempo: {profile_data.medicion_tiempo}, mejor de {profile_data.points[0].repeticiones if profile_data.points else 0} "
+                  f"corridas por tamaño. Instrucciones: Cachegrind. perf {profile_data.perf}.[/dim]")
     avisos = "".join(f"\n[bold yellow]⚠ {a}[/bold yellow]" for a in profile_data.advertencias)
     console.print(Panel(
         f"[bold]Complejidad Empírica Estimada:[/bold] [bold green]{profile_data.theoretical_complexity_guess}[/bold green]\n"
