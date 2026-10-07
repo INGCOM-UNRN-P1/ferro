@@ -145,12 +145,12 @@ def ajuste_loglog(points: List[BenchmarkPoint], campo: str) -> Optional[Tuple[fl
         sxx = sum((x - mx) ** 2 for x in xs)
         if sxx == 0:
             continue
-        b = sum((x - mx) * (v - media) for x, v in zip(xs, ys)) / sxx
+        b = sum((x - mx) * (v - media) for x, v in zip(xs, ys, strict=False)) / sxx
         a = media - b * mx
         if a < 0 or b <= 0:
             a = 0.0
-            b = sum(x * v for x, v in zip(xs, ys)) / sum(x * x for x in xs)
-        error = sum((v - (a + b * x)) ** 2 for x, v in zip(xs, ys))
+            b = sum(x * v for x, v in zip(xs, ys, strict=False)) / sum(x * x for x in xs)
+        error = sum((v - (a + b * x)) ** 2 for x, v in zip(xs, ys, strict=False))
         if mejor is None or error < mejor[0]:
             mejor = (error, k)
     if mejor is None:

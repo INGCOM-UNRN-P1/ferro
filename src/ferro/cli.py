@@ -31,7 +31,7 @@ def _parsear_tamanios(texto: str) -> List[int]:
         tamanios = [int(t.strip()) for t in texto.split(",") if t.strip()]
     except ValueError:
         err_console.print(f"[red]--inputs inválido:[/red] '{texto}'. Se esperan enteros separados por coma, p. ej. 1000,10000.")
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from None
     if not tamanios or any(t <= 0 for t in tamanios):
         err_console.print("[red]--inputs inválido:[/red] indicá al menos un tamaño N y todos deben ser mayores que cero.")
         raise typer.Exit(code=2)

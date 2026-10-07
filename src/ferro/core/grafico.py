@@ -27,7 +27,7 @@ def grafico_ascii(perfil: PerformanceProfile) -> Optional[str]:
     ly = [math.log10(v) for _, v in serie]
     x0, x1, y0, y1 = min(lx), max(lx), min(ly), max(ly)
     grilla = [[" "] * ANCHO for _ in range(ALTO)]
-    for x, y in zip(lx, ly):
+    for x, y in zip(lx, ly, strict=False):
         col = round((x - x0) / ((x1 - x0) or 1) * (ANCHO - 1))
         fila = ALTO - 1 - round((y - y0) / ((y1 - y0) or 1) * (ALTO - 1))
         grilla[fila][col] = "●"
@@ -53,11 +53,11 @@ def grafico_svg(perfil: PerformanceProfile, destino: Path) -> bool:
         return (margen + (x - x0) / ((x1 - x0) or 1) * (ancho - 2 * margen),
                 alto - margen - (y - y0) / ((y1 - y0) or 1) * (alto - 2 * margen))
 
-    puntos = [px(x, y) for x, y in zip(lx, ly)]
+    puntos = [px(x, y) for x, y in zip(lx, ly, strict=False)]
     trazo = " ".join(f"{x:.1f},{y:.1f}" for x, y in puntos)
     circulos = "".join(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="#2563eb"/>' for x, y in puntos)
     etiquetas = "".join(f'<text x="{x:.1f}" y="{alto - margen + 16}" font-size="10" text-anchor="middle">{n:,}</text>'
-                        for (x, _), (n, _) in zip(puntos, serie))
+                        for (x, _), (n, _) in zip(puntos, serie, strict=False))
     titulo = perfil.target_name + (f" — crece como N^{perfil.exponente_empirico}" if perfil.exponente_empirico else "")
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{ancho}" height="{alto}" font-family="sans-serif">'
            f'<rect width="100%" height="100%" fill="white"/>'
