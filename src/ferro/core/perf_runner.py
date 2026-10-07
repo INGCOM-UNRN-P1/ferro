@@ -105,6 +105,8 @@ def _detectar_trabajo_eliminado(points: List[BenchmarkPoint]) -> List[str]:
         return []
     menor = min(medidos, key=lambda p: p.input_size_n)
     mayor = max(medidos, key=lambda p: p.input_size_n)
+    if menor.instructions_est is None or mayor.instructions_est is None:  # filtrados arriba
+        return []
     if mayor.input_size_n >= 2 * menor.input_size_n and mayor.instructions_est <= menor.instructions_est * 1.05:
         return [
             f"Las instrucciones ejecutadas casi no crecen con N ({menor.instructions_est:,} para "
