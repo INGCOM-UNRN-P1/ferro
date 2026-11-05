@@ -87,7 +87,7 @@ def profile(
     inputs_str: str = typer.Option("1000,10000,50000", "--inputs", "-i", help="Lista de tamaños de entrada N separados por coma"),
     json_output: bool = typer.Option(False, "--json", help="Emitir salida en formato JSON estructurado"),
     output_md: Optional[Path] = typer.Option(None, "--md", "--output-md", help="Generar sección de reporte en formato Markdown para fusión en Dredd."),
-    opt: str = typer.Option("-O0", "--opt", help="Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3, -Os). Con -O2 un bucle sin efectos observables se elimina y no se mide."),
+    opt: str = typer.Option("-O0", "--opt", help="Nivel de optimización al compilar un .c (-O0, -O1, -O2, -O3, -Os). Con -O2 un lazo sin efectos observables se elimina y no se mide."),
     grafico: Optional[Path] = typer.Option(None, "--grafico", help="Guardar el gráfico N contra la métrica medida como SVG."),
 ):
     """Mide tiempo de ejecución e instrucciones ejecutadas, y evalúa la complejidad empírica."""

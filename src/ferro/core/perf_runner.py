@@ -255,7 +255,7 @@ def profile_algorithm(
                 target_file=str(source_or_binary),
                 points=points,
                 theoretical_complexity_guess="Timeout excedido (> 5.0s)",
-                cache_locality_assessment="Ejecución interrumpida por timeout de seguridad.",
+                cache_locality_assessment="Ejecución interrumpida por el tiempo límite de seguridad.",
                 passed=False,
                 error_message="Se excedió el tiempo límite de ejecución (5 segundos)."
             )
