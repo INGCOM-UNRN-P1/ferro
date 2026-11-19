@@ -71,3 +71,25 @@ def test_sin_valgrind_se_declara_no_medido(tmp_path, monkeypatch):
 def test_umbrales_de_lectura(tasa, esperado):
     medicion = MedicionCache(medido=True, tasa_fallos_d1=tasa, tasa_fallos_lld=1.0)
     assert esperado in medicion.evaluacion
+
+
+def test_valgrind_corre_sin_debuginfod(monkeypatch, tmp_path):
+    """Sin red, valgrind tardaba minutos buscando símbolos en DEBUGINFOD_URLS (Fedora lo configura)."""
+    import ferro.core.cache_locality as cl
+
+    monkeypatch.setenv("DEBUGINFOD_URLS", "https://debuginfod.fedoraproject.org/")
+    monkeypatch.setattr(cl.shutil, "which", lambda t: "/usr/bin/valgrind")
+    vistos = {}
+
+    class _Res:
+        returncode, stdout, stderr = 0, "", "==1== I refs: 1,000\n==1== D1  miss rate: 1.0% (1.0% + 1.0%)\n"
+
+    def run(cmd, **k):
+        vistos.update(k)
+        return _Res()
+
+    monkeypatch.setattr(cl.subprocess, "run", run)
+    medicion = cl.medir_localidad_cache(tmp_path / "bin")
+    assert medicion.medido and medicion.instrucciones == 1000
+    assert vistos["env"]["DEBUGINFOD_URLS"] == ""
+    assert "PATH" in vistos["env"]  # el resto del entorno se conserva

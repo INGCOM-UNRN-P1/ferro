@@ -12,12 +12,13 @@ midió en vez de afirmar un patrón.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 # "D1  miss rate:    4.2%" / "LLd miss rate:  0.1%"
 _TASA_D1 = re.compile(r"D1\s+miss rate:\s*([\d.]+)%")
@@ -61,6 +62,17 @@ class MedicionCache:
         )
 
 
+def entorno_valgrind() -> Dict[str, str]:
+    """El entorno de valgrind sin debuginfod.
+
+    En Fedora (y otras) `DEBUGINFOD_URLS` viene configurado y valgrind busca en la red los
+    símbolos de cada binario nuevo. Sin red (un laboratorio, un CI sin salida) esa consulta
+    tarda minutos: Cachegrind agotaba el tiempo límite y la medición salía «no medida».
+    Cachegrind sólo cuenta instrucciones y fallos de caché: no necesita símbolos.
+    """
+    return {**os.environ, "DEBUGINFOD_URLS": ""}
+
+
 def medir_localidad_cache(
     binario: Path,
     args: Optional[List[str]] = None,
@@ -88,7 +100,8 @@ def medir_localidad_cache(
         *(args or []),
     ]
     try:
-        res = subprocess.run(cmd, input=stdin_texto, capture_output=True, text=True, timeout=timeout_segundos)
+        res = subprocess.run(cmd, input=stdin_texto, capture_output=True, text=True, timeout=timeout_segundos,
+                             env=entorno_valgrind())
     except subprocess.TimeoutExpired:
         return MedicionCache(
             medido=False,
